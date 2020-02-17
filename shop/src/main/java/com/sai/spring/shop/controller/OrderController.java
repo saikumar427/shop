@@ -1,6 +1,5 @@
 package com.sai.spring.shop.controller;
 
-import java.io.IOException;
 import java.util.List;
 
 import javax.servlet.http.HttpServletResponse;
@@ -93,16 +92,16 @@ public class OrderController {
 	}
 	
 	@ExceptionHandler(OrderNotFoundException.class)
-    public ResponseEntity<OrderNotFound> springHandleNotFound(Exception ex,HttpServletResponse response) throws IOException {
+    public ResponseEntity<OrderNotFound> springHandleNotFound(Exception ex,HttpServletResponse response) {
 		OrderNotFound orderResponse = new OrderNotFound();
 		orderResponse.setMessage(ex.getMessage());
-		return new ResponseEntity<OrderNotFound>(orderResponse, HttpStatus.NOT_FOUND);
+		return new ResponseEntity<>(orderResponse, HttpStatus.NOT_FOUND);
     }
 }
 
 class OrderNotFoundException extends RuntimeException{
 	private static final long serialVersionUID = 1L;
 	OrderNotFoundException(String id){
-		super(String.format("Order with id %s not found ", id));
+		super(String.format("Order with order id \"%s\" not found ", id));
 	}
 }

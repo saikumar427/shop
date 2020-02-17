@@ -21,10 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sai.spring.shop.bean.Item;
 import com.sai.spring.shop.bean.Order;
+import com.sai.spring.shop.bean.OrderLog;
 import com.sai.spring.shop.bean.Product;
 import com.sai.spring.shop.enums.OrderEvents;
 import com.sai.spring.shop.enums.OrderStates;
 import com.sai.spring.shop.repository.ItemRepository;
+import com.sai.spring.shop.repository.OrderLogRepository;
 import com.sai.spring.shop.repository.OrderRepository;
 import com.sai.spring.shop.repository.ProductRepository;
 
@@ -43,6 +45,9 @@ public class OrderService {
 
 	@Autowired
 	private ProductRepository productRepository;
+	
+	@Autowired
+	private OrderLogRepository orderLogRepository;
 
 	@Autowired
 	private StateMachineFactory<OrderStates, OrderEvents> factory;
@@ -53,7 +58,7 @@ public class OrderService {
 		order.setOrderStatus(OrderStates.ORDERED);
 		order.setCreatedAt(Instant.now());
 		orderRepository.save(order);
-
+		logOrderInfo(order, null);
 		products.stream().forEach(product -> {
 			Item item = new Item();
 			item.setItem(product.getItem());
@@ -96,6 +101,14 @@ public class OrderService {
 		stateMachine.sendEvent(message);
 	}
 
+	private void logOrderInfo(Order order, OrderStates previousState) {
+		OrderLog orderLog = new OrderLog();
+		orderLog.setOrderId(order.getId());
+		orderLog.setPreviousState(previousState);
+		orderLog.setCurrentState(order.getOrderStatus());
+		orderLog.setLogAt(Instant.now());
+		orderLogRepository.save(orderLog);
+	}
 	private StateMachine<OrderStates, OrderEvents> build(String orderId) {
 		Order order = this.orderRepository.getOne(orderId); // Retrieve orderId on DB
 		String orderIdKey = String.valueOf(order.getId()); // Convert the ID to String
@@ -151,9 +164,13 @@ public class OrderService {
 					Optional.ofNullable(message).ifPresent(msg -> {
 						Optional.ofNullable(msg.getHeaders().getOrDefault(ORDER_ID_HEADER, "")).ifPresent(orderId -> {
 							Order order1 = orderRepository.getOne(orderId.toString());
-							order1.setOrderStatus(state.getId()); // This is the one responsible for changing the
-							order1.setLastUpdatedAt(Instant.now()); // state
+							OrderStates previousState = order1.getOrderStatus();
+							order1.setOrderStatus(state.getId());
+							logOrderInfo(order1, previousState);
+							
+							order1.setLastUpdatedAt(Instant.now());
 							orderRepository.save(order1);
+							
 
 						});
 					});
